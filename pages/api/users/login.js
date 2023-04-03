@@ -25,10 +25,12 @@ async function loginRoute(req, res) {
 
         if(user && (await user.matchPassword(password))) {
             req.session.user = {
+                isLoggedIn: true,
                 _id: user._id,
                 username: user.username,
                 email: user.email,
                 token: generateToken(user._id, user.isAdmin),
+                isAdmin: user.isAdmin,
                 createdAt: user.createdAt
             };
             await req.session.save();

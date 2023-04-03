@@ -1,12 +1,35 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome";
 import {faEye} from "@fortawesome/free-solid-svg-icons";
 import Layout from "../components/Layout";
 import Link from "next/link";
 import { useRouter } from "next/router";
+import {withIronSessionSsr} from "iron-session/next";
+import {sessionOptions} from "../lib/session";
+import useUser from "../lib/useUser";
+import fetchJson from "../lib/fetchJson";
+
+export const getServerSideProps = withIronSessionSsr(
+    async function({req, res}) {
+        const { user } = req.session
+
+        if(user) {
+            return {
+                redirect: {
+                    destination: '/',
+                    permanent: false,
+                }
+            }
+        }
+
+        return {
+            props: {  }
+        }
+    }, sessionOptions
+)
 
 const Login = () => {
-
+    const { mutateUser } = useUser()
     const router = useRouter();
     const [formData, setFormData] = useState({
         username: "",
@@ -15,7 +38,7 @@ const Login = () => {
     const [error, setError] = useState("");
     const [showPassword, setShowPassword] = useState(false);
 
-    const loginHandler = (e) => {
+    const loginHandler = async(e) => {
         e.preventDefault();
         setError("");
 
@@ -24,30 +47,16 @@ const Login = () => {
                 throw new Error('Please fill all required fields!')
             }
 
-            postData(formData);
-        } catch (e) {
-            setError(e.message);
-        }
-    }
-
-    const postData = async (formData) => {
-        try {
-            const res = await fetch('/api/users/login', {
-                method: 'POST',
-                headers: {
-                    Accept: 'application/json',
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(formData)
+            mutateUser(
+                await fetchJson('/api/users/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                }),
+                false
+            ).then(() => {
+                router.push('/');
             })
-
-            let data = await res.json();
-
-            if(!res.ok) {
-                throw new Error(data.message);
-            }
-
-            await router.push('/')
         } catch (e) {
             setError(e.message);
         }

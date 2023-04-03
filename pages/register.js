@@ -5,9 +5,32 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faEye } from "@fortawesome/free-solid-svg-icons";
 import Link from "next/link";
 import { useRouter } from 'next/router'
+import useUser from "../lib/useUser";
+import {withIronSessionSsr} from "iron-session/next";
+import {sessionOptions} from "../lib/session";
+import fetchJson from "../lib/fetchJson";
+
+export const getServerSideProps = withIronSessionSsr(
+    async function({req, res}) {
+        const { user } = req.session
+
+        if(user) {
+            return {
+                redirect: {
+                    destination: '/',
+                    permanent: false,
+                }
+            }
+        }
+
+        return {
+            props: {  }
+        }
+    }, sessionOptions
+)
 
 const Register = () => {
-
+    const { mutateUser } = useUser()
     const router = useRouter();
 
     const [formData, setFormData] = useState({
@@ -20,7 +43,7 @@ const Register = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-    const registerHandler = (e) => {
+    const registerHandler = async(e) => {
         e.preventDefault();
         const emailPattern = /^[a-zA-Z0-9.!#$%&’*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*$/;
         const passwordPattern = /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()])[A-Za-z\d!@#$%^&*()]{8,}$/;
@@ -47,39 +70,15 @@ const Register = () => {
                 throw new Error("Password must be atleast 8 characters long with 1 capital, 1 number, and 1 symbol");
             }
 
-            postData(formData);
-        } catch (e) {
-            setError(e.message);
-        }
-
-        console.log(formData);
-    }
-
-    const postData = async (formData) => {
-        try {
-            const res = await fetch('/api/users/register', {
+            await fetchJson('/api/users/register', {
                 method: 'POST',
-                headers: {
-                    Accept: 'application/json',
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData)
-            })
-
-            let data = await res.json();
-
-            if(!res.ok) {
-                throw new Error(data.message)
-            }
-
-            Swal.fire({
-                icon: 'success',
-                title: data.message
             }).then(() => {
                 router.push('/login')
             })
         } catch (e) {
-            setError(e.message);
+            setError(e.data.message);
         }
     }
 
@@ -110,7 +109,7 @@ const Register = () => {
                         <div className={'flex flex-row gap-4 justify-between content-center items-center'}>
                             <label className={'select-none'} htmlFor={'confirmpassword'}>Confirm Password</label>
                             <div className={'flex flex-row items-center gap-2'}>
-                                <input className={'text-black p-1'} name={'confirmpassword'} id={'password'} type={showConfirmPassword ? "text" : "password"} value={formData.confirmpassword} onChange={(e) => {setFormData({...formData, confirmpassword: e.target.value})}} />
+                                <input className={'text-black p-1'} name={'confirmpassword'} id={'confirmpassword'} type={showConfirmPassword ? "text" : "password"} value={formData.confirmpassword} onChange={(e) => {setFormData({...formData, confirmpassword: e.target.value})}} />
                                 <div onMouseDown={() => {setShowConfirmPassword(true)}} onMouseUp={() => {setShowConfirmPassword(false)}} className={'text-fuchsia-900 hover:text-fuchsia-600 cursor-pointer absolute right-7 p-1'}><FontAwesomeIcon icon={faEye} /></div>
                             </div>
                         </div>
